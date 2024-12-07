@@ -3,19 +3,42 @@ from django.forms.models import model_to_dict
 from django.http.request import HttpRequest
 from django.http import JsonResponse
 from rest_framework.response import Response
-from rest_framework import generics
+from rest_framework import generics, mixins, permissions, authentication
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
 from .models import Product
 from .serializers import ProductSerializer
+from .permissions import IsStaffEditorPermission
 # Create your views here.
 
+class ProductMixinView(mixins.DestroyModelMixin, mixins.UpdateModelMixin, mixins.CreateModelMixin, mixins.ListModelMixin,mixins.RetrieveModelMixin, generics.GenericAPIView):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    lookup_field = "pk"
 
+    def get(self, request, *args, **kwargs):
+        print(args, kwargs)
+        pk = kwargs.get("pk")
+        if pk is not None:
+            return self.retrieve(request, *args, **kwargs)
+        return self.list(request, *args, **kwargs)
+    
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+    
+    def update(self, request, *args, **kwargs):
+        return super().update(request, *args, **kwargs)
+    
+    def destroy(self, request, *args, **kwargs):
+        return super().destroy(request, *args, **kwargs)
+    
 
 
 class ProductListCreateAPIView(generics.ListCreateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    authentication_classes = [authentication.SessionAuthentication]
+    permission_classes = [IsStaffEditorPermission] # authenticated permission
 
     def perform_create(self, serializer:serializer_class):
         print(serializer.validated_data)
